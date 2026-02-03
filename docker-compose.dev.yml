@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Development: separate frontend + backend
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: renewable-ai-frontend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+    networks:
+      - renewable-ai-network
+    stdin_open: true
+    tty: true
+
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: renewable-ai-backend-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    networks:
+      - renewable-ai-network
+
+networks:
+  renewable-ai-network:
+    driver: bridge

@@ -1,0 +1,16 @@
+FROM mambaorg/micromamba:1.5.10
+
+USER root
+WORKDIR /app
+
+COPY --chown=$MAMBA_USER:$MAMBA_USER backend/environment.yml ./
+RUN micromamba install -y -n base -f environment.yml && \
+    micromamba clean --all --yes
+
+COPY --chown=$MAMBA_USER:$MAMBA_USER backend/ ./
+
+USER $MAMBA_USER
+
+EXPOSE 8000
+
+CMD ["/usr/local/bin/_entrypoint.sh", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

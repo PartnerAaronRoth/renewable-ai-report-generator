@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        watch: {
+          usePolling: true, // Needed for Docker on some systems
+        },
+      },
+      preview: {
+        port: 4173,
+        host: '0.0.0.0', // Allow Docker container access
       },
       plugins: [react()],
       define: {

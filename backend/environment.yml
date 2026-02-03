@@ -1,0 +1,9 @@
+name: backend
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - uvicorn=0.34.0
+  - pip
+  - pip:
+    - litestar[standard]==2.12.1
