@@ -1,0 +1,74 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+build
+.vite
+
+# Environment variables (CRITICAL!)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+
+# Package manager locks (uncomment if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# User uploaded documents (IMPORTANT - prevents committing sensitive client files!)
+uploads/
+datarooms/
+test-files/
+sample-data/
+*.pdf
+*.xlsx
+*.xls
+*.xlsm
+*.zip
+*.docx
+
+# Generated reports/exports
+reports/
+output/
+exports/
+generated/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# AI/Cloud service credentials
+.google/
+.ai-studio/
+credentials.json
+service-account*.json
