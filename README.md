@@ -53,5 +53,28 @@ docker-compose up --build -d
 
 ## ⚠️ Security Note
 
-**Current Setup:** API key is client-side exposed (temporary for v1.0)  
-**Roadmap:** Backend proxy with server-side API key, authentication, rate limiting, and cost tracking planned for v2.0
+**Current Setup:** Backend proxy with JWT authentication implemented.
+
+### ✅ Security Implemented:
+- API key on backend only (not client-side)
+- JWT authentication with password hashing (bcrypt)
+- Usage caps and cost tracking
+- Authorized email whitelist
+- Audit logging to CloudWatch
+- Per-user authentication and authorization
+
+### ❌ Outstanding Security Vulnerabilities:
+
+1. **No HTTPS/SSL** - Running on HTTP only
+3. **Database credentials in plain text** - Stored in config files
+4. **JWT tokens can't be revoked** - No session management/blacklist
+5. **No rate limiting** - Only usage caps, no per-endpoint throttling
+6. **No brute force protection** - Unlimited login attempts
+7. **No input validation** - File size/type not enforced
+8. **XSS risk** - AI-generated content not sanitized
+9. **Long-lived JWT tokens** - No refresh token mechanism (24hr expiry)
+10. **CORS not configured** - May allow unwanted origins
+11. **No CSRF protection** - State-changing requests vulnerable
+12. **No secure headers** - Missing CSP, X-Frame-Options, etc.
+13. **Secrets management** - Should use AWS Secrets Manager in production
+14. **No malware scanning** - Uploaded files not scanned

@@ -1,3 +1,22 @@
+# Backend Configuration
+
+# Usage Cap Settings
+usage_cap:
+  enabled: true  # Set to false for unlimited
+  period: "monthly"  # "daily", "weekly", "monthly"
+  limit_usd: 1000.0  # Maximum spend per period
+  
+# Usage Tracking Storage
+usage_storage:
+  type: "file"  # "mysql" or "file"
+  
+  # MySQL config (if type: mysql) - Uses environment variables
+  # Set: MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+  
+  # File config (if type: file)
+  file:
+    path: "./usage_tracking.json"
+
 # Authorized user emails
 authorized_emails:
   - admin@partneresi.com

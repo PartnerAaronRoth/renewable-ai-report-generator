@@ -1,6 +1,7 @@
 from litestar import Litestar, post, get, Request
 from litestar.connection import ASGIConnection
-from litestar.exceptions import NotAuthorizedException
+from litestar.exceptions import NotAuthorizedException, HTTPException
+from litestar.status_codes import HTTP_429_TOO_MANY_REQUESTS
 from litestar.middleware import DefineMiddleware
 from litestar.datastructures import State
 from litestar.response import File
@@ -18,6 +19,7 @@ from auth import (
 )
 from email_service import send_password_reset_email
 from logging_config import log_auth_event, log_api_request, log_error, log_document_processed
+from usage_tracker import check_usage_limit, add_user_usage, get_usage_stats
 from datetime import datetime, timedelta
 
 from google import genai
@@ -211,11 +213,31 @@ async def get_me(request: Request) -> dict:
     return {"email": user["sub"], "user_id": user["user_id"]}
 
 
+@get("/api/usage")
+async def get_usage(request: Request) -> dict:
+    """Get current user's usage statistics"""
+    user = get_current_user(request)
+    return get_usage_stats(user["sub"])
+
+
 @post("/api/gemini/classify")
 async def classify_document(data: GeminiRequest, request: Request, state: State) -> GeminiResponse:
     """Classify documents using Gemini (requires auth)"""
     start_time = time.time()
     user = get_current_user(request)
+    
+    # Check usage limit
+    is_allowed, current_usage, remaining = check_usage_limit(user["sub"])
+    if not is_allowed:
+        log_error("usage_limit_exceeded", f"User exceeded usage cap", user["sub"], {
+            "current_usage": current_usage,
+            "limit": remaining + current_usage
+        })
+        raise HTTPException(
+            status_code=HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Usage limit exceeded. Current: ${current_usage:.2f}, Remaining: ${remaining:.2f}"
+        )
+    
     client = state.gemini_client
     
     try:
@@ -233,6 +255,9 @@ async def classify_document(data: GeminiRequest, request: Request, state: State)
         
         cost = calculate_cost(usage, data.model)
         duration_ms = (time.time() - start_time) * 1000
+        
+        # Track usage in Redis/file
+        add_user_usage(user["sub"], cost["total"])
         
         # Log to database
         db = next(get_db())
@@ -275,6 +300,15 @@ async def extract_data(data: GeminiRequest, request: Request, state: State) -> G
     """Extract data (requires auth)"""
     start_time = time.time()
     user = get_current_user(request)
+    
+    # Check usage limit
+    is_allowed, current_usage, remaining = check_usage_limit(user["sub"])
+    if not is_allowed:
+        raise HTTPException(
+            status_code=HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Usage limit exceeded. Current: ${current_usage:.2f}, Remaining: ${remaining:.2f}"
+        )
+    
     client = state.gemini_client
     
     try:
@@ -292,6 +326,9 @@ async def extract_data(data: GeminiRequest, request: Request, state: State) -> G
         
         cost = calculate_cost(usage, data.model)
         duration_ms = (time.time() - start_time) * 1000
+        
+        # Track usage
+        add_user_usage(user["sub"], cost["total"])
         
         # Log to database
         db = next(get_db())
@@ -334,6 +371,15 @@ async def generate_report(data: GeminiRequest, request: Request, state: State) -
     """Generate report (requires auth)"""
     start_time = time.time()
     user = get_current_user(request)
+    
+    # Check usage limit
+    is_allowed, current_usage, remaining = check_usage_limit(user["sub"])
+    if not is_allowed:
+        raise HTTPException(
+            status_code=HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Usage limit exceeded. Current: ${current_usage:.2f}, Remaining: ${remaining:.2f}"
+        )
+    
     client = state.gemini_client
     
     try:
@@ -351,6 +397,9 @@ async def generate_report(data: GeminiRequest, request: Request, state: State) -
         
         cost = calculate_cost(usage, data.model)
         duration_ms = (time.time() - start_time) * 1000
+        
+        # Track usage
+        add_user_usage(user["sub"], cost["total"])
         
         # Log to database
         db = next(get_db())
@@ -431,7 +480,7 @@ app = Litestar(
         health_check,
         register, login,
         password_reset_request, password_reset_confirm,
-        get_me,
+        get_me, get_usage,
         classify_document, extract_data, generate_report,
         serve_spa  # Catch-all must be last
     ],
