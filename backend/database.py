@@ -3,8 +3,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import os
+from pathlib import Path
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+# Data directory path (will be created in init_db if needed)
+DATA_DIR = Path("/app/data")
+
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR}/app.db")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -39,6 +43,8 @@ class UsageLog(Base):
 
 
 def init_db():
+    # Ensure data directory exists before creating database
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
 
 

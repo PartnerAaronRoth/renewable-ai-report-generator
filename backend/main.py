@@ -226,6 +226,13 @@ async def classify_document(data: GeminiRequest, request: Request, state: State)
     start_time = time.time()
     user = get_current_user(request)
     
+    # Check if Gemini client is initialized
+    if not state.gemini_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API not configured. Please set GEMINI_API_KEY environment variable."
+        )
+    
     # Check usage limit
     is_allowed, current_usage, remaining = check_usage_limit(user["sub"])
     if not is_allowed:
@@ -301,6 +308,13 @@ async def extract_data(data: GeminiRequest, request: Request, state: State) -> G
     start_time = time.time()
     user = get_current_user(request)
     
+    # Check if Gemini client is initialized
+    if not state.gemini_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API not configured. Please set GEMINI_API_KEY environment variable."
+        )
+    
     # Check usage limit
     is_allowed, current_usage, remaining = check_usage_limit(user["sub"])
     if not is_allowed:
@@ -371,6 +385,13 @@ async def generate_report(data: GeminiRequest, request: Request, state: State) -
     """Generate report (requires auth)"""
     start_time = time.time()
     user = get_current_user(request)
+    
+    # Check if Gemini client is initialized
+    if not state.gemini_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API not configured. Please set GEMINI_API_KEY environment variable."
+        )
     
     # Check usage limit
     is_allowed, current_usage, remaining = check_usage_limit(user["sub"])
@@ -461,7 +482,7 @@ async def serve_spa(path: str) -> File:
     return None
 
 
-def on_startup(state: State) -> None:
+def on_startup(app: Litestar) -> None:
     """Initialize on startup"""
     # Initialize database
     init_db()
@@ -469,10 +490,13 @@ def on_startup(state: State) -> None:
     # Initialize Gemini client
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("GEMINI_API_KEY required")
-    
-    client = genai.Client(api_key=api_key)
-    state.gemini_client = client
+        print("WARNING: GEMINI_API_KEY not set. Gemini endpoints will not work.")
+        print("Set GEMINI_API_KEY environment variable to enable AI features.")
+        app.state.gemini_client = None
+    else:
+        client = genai.Client(api_key=api_key)
+        app.state.gemini_client = client
+        print("✓ Gemini API client initialized")
 
 
 app = Litestar(

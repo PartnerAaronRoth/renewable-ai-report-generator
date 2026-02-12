@@ -72,3 +72,5 @@ generated/
 .ai-studio/
 credentials.json
 service-account*.json
+
+data/

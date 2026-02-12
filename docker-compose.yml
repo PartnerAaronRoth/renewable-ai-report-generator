@@ -11,8 +11,20 @@ services:
     container_name: renewable-ai-app
     ports:
       - "8000:8000"
+    volumes:
+      - app-data:/app/data
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - SES_SENDER_EMAIL=${SES_SENDER_EMAIL}
+      - MYSQL_HOST=${MYSQL_HOST:-localhost}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-renewable_ai_usage}
+      - MYSQL_USER=${MYSQL_USER:-root}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     restart: unless-stopped
     networks:
       - renewable-ai-network
@@ -22,6 +34,10 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+volumes:
+  app-data:
+    driver: local
 
 networks:
   renewable-ai-network:

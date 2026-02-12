@@ -60,9 +60,7 @@ if STORAGE_TYPE == "mysql":
 
 elif STORAGE_TYPE == "file":
     FILE_PATH = Path(config["usage_storage"]["file"]["path"])
-    # Ensure file exists
-    if not FILE_PATH.exists():
-        FILE_PATH.write_text(json.dumps({}))
+    # File will be created on first use, not at import time
 
 
 def get_period_key() -> str:
@@ -97,6 +95,9 @@ def get_user_usage(user_email: str) -> float:
     
     elif STORAGE_TYPE == "file":
         key = f"usage:{user_email}:{period_key}"
+        # Create file if it doesn't exist
+        if not FILE_PATH.exists():
+            FILE_PATH.write_text(json.dumps({}))
         data = json.loads(FILE_PATH.read_text())
         return data.get(key, 0.0)
 
@@ -120,6 +121,9 @@ def add_user_usage(user_email: str, cost_usd: float):
     
     elif STORAGE_TYPE == "file":
         key = f"usage:{user_email}:{period_key}"
+        # Create file if it doesn't exist
+        if not FILE_PATH.exists():
+            FILE_PATH.write_text(json.dumps({}))
         data = json.loads(FILE_PATH.read_text())
         current = data.get(key, 0.0)
         data[key] = current + cost_usd

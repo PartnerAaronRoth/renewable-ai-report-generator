@@ -15,7 +15,7 @@ usage_storage:
   
   # File config (if type: file)
   file:
-    path: "./usage_tracking.json"
+    path: "/app/data/usage_tracking.json"
 
 # Authorized user emails
 authorized_emails:

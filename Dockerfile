@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Build frontend
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 COPY . .
 ARG GEMINI_API_KEY
 ENV GEMINI_API_KEY=$GEMINI_API_KEY
@@ -27,6 +27,9 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER backend/ ./
 
 # Copy built frontend from previous stage
 COPY --from=frontend-builder --chown=$MAMBA_USER:$MAMBA_USER /app/dist ./dist
+
+# Create data directory for SQLite database
+RUN mkdir -p /app/data && chown $MAMBA_USER:$MAMBA_USER /app/data
 
 USER $MAMBA_USER
 
