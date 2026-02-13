@@ -9,7 +9,7 @@ RUN npm install
 COPY . .
 ARG GEMINI_API_KEY
 ENV GEMINI_API_KEY=$GEMINI_API_KEY
-RUN npm run build
+RUN npm run build && ls -la dist/ && echo "✓ Build completed, dist directory created"
 
 # Python backend with micromamba
 FROM mambaorg/micromamba:1.5.10

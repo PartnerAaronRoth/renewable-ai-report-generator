@@ -4,13 +4,16 @@ from litestar.exceptions import NotAuthorizedException, HTTPException
 from litestar.status_codes import HTTP_429_TOO_MANY_REQUESTS
 from litestar.middleware import DefineMiddleware
 from litestar.datastructures import State
-from litestar.response import File
+from litestar.response import File, Response
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from pathlib import Path
 import os
 import yaml
 import time
+import logging
+
+logger = logging.getLogger("uvicorn")
 
 from database import init_db, get_db, User, UsageLog
 from auth import (
@@ -458,28 +461,83 @@ async def generate_report(data: GeminiRequest, request: Request, state: State) -
         raise
 
 
+@get("/")
+async def serve_root() -> Response[bytes]:
+    """Serve index.html for root path"""
+    logger.info("Serving root /")
+    index_path = Path("dist") / "index.html"
+    if index_path.exists():
+        content = index_path.read_bytes()
+        return Response(
+            content=content,
+            media_type="text/html",
+            headers={"Content-Type": "text/html; charset=utf-8"}
+        )
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+
 @get("/{path:path}")
-async def serve_spa(path: str) -> File:
+async def serve_spa(path: str) -> Response[bytes] | File:
     """Serve React SPA (catch-all route for production)"""
+    logger.info(f"serve_spa called with path: '{path}' (empty={not path})")
     static_dir = Path("dist")
     
     # API routes handled above
     if path.startswith("api/") or path.startswith("auth/"):
-        return None
+        raise HTTPException(status_code=404, detail="Not Found")
     
-    file_path = static_dir / path
+    # Handle empty path (root)
+    if not path or path == "":
+        logger.info("Serving index.html for root path")
+        index_path = static_dir / "index.html"
+        logger.info(f"Index path: {index_path.absolute()}, exists: {index_path.exists()}")
+        if index_path.exists():
+            content = index_path.read_bytes()
+            return Response(
+                content=content,
+                media_type="text/html",
+                headers={"Content-Type": "text/html; charset=utf-8"}
+            )
+        raise HTTPException(status_code=404, detail="index.html not found")
+    
+    # Strip leading slash to make path relative
+    clean_path = path.lstrip("/")
+    file_path = static_dir / clean_path
+    logger.info(f"Looking for file: {file_path.absolute()}, exists: {file_path.exists()}, is_file: {file_path.is_file()}")
     
     # If file exists, serve it
     if file_path.is_file():
-        return File(file_path)
+        logger.info(f"Serving file: {file_path}")
+        # Determine content type based on file extension
+        if clean_path.endswith(".html"):
+            content = file_path.read_bytes()
+            return Response(
+                content=content,
+                media_type="text/html",
+                headers={"Content-Type": "text/html; charset=utf-8"}
+            )
+        elif clean_path.endswith(".js"):
+            return File(file_path, media_type="application/javascript")
+        elif clean_path.endswith(".css"):
+            return File(file_path, media_type="text/css")
+        elif clean_path.endswith(".json"):
+            return File(file_path, media_type="application/json")
+        else:
+            return File(file_path)
     
     # Otherwise serve index.html (for client-side routing)
+    logger.info("Serving index.html for SPA routing")
     index_path = static_dir / "index.html"
     if index_path.exists():
-        return File(index_path)
+        content = index_path.read_bytes()
+        return Response(
+            content=content,
+            media_type="text/html",
+            headers={"Content-Type": "text/html; charset=utf-8"}
+        )
     
     # dist/ doesn't exist (development mode)
-    return None
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 def on_startup(app: Litestar) -> None:
@@ -487,16 +545,28 @@ def on_startup(app: Litestar) -> None:
     # Initialize database
     init_db()
     
+    # Check if dist directory exists
+    dist_path = Path("dist")
+    if dist_path.exists():
+        logger.info(f"✓ dist directory found at: {dist_path.absolute()}")
+        logger.info(f"  Contents: {list(dist_path.iterdir())}")
+        index_exists = (dist_path / "index.html").exists()
+        logger.info(f"  index.html exists: {index_exists}")
+    else:
+        logger.warning(f"⚠ WARNING: dist directory NOT found at: {dist_path.absolute()}")
+        logger.warning(f"  Current working directory: {Path.cwd()}")
+        logger.warning(f"  Directory contents: {list(Path.cwd().iterdir())}")
+    
     # Initialize Gemini client
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("WARNING: GEMINI_API_KEY not set. Gemini endpoints will not work.")
-        print("Set GEMINI_API_KEY environment variable to enable AI features.")
+        logger.warning("WARNING: GEMINI_API_KEY not set. Gemini endpoints will not work.")
+        logger.warning("Set GEMINI_API_KEY environment variable to enable AI features.")
         app.state.gemini_client = None
     else:
         client = genai.Client(api_key=api_key)
         app.state.gemini_client = client
-        print("✓ Gemini API client initialized")
+        logger.info("✓ Gemini API client initialized")
 
 
 app = Litestar(
@@ -506,6 +576,7 @@ app = Litestar(
         password_reset_request, password_reset_confirm,
         get_me, get_usage,
         classify_document, extract_data, generate_report,
+        serve_root,  # Root handler
         serve_spa  # Catch-all must be last
     ],
     on_startup=[on_startup],
